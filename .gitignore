@@ -7,3 +7,8 @@
 
 private/
 results/raw/
+bootstrap/local.env
+snapshot/private/
+**/.env
+**/*token*
+**/*secret*
