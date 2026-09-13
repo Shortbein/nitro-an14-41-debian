@@ -1,7 +1,20 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+# Prefer the Git repository that contains the current working directory. This
+# keeps the collector usable even when the script is streamed/copied to /tmp.
+if ROOT="$(git -C "$PWD" rev-parse --show-toplevel 2>/dev/null)"; then
+  :
+else
+  SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+  if ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null)"; then
+    :
+  else
+    printf 'ERROR: run this script from inside the nitro-an14-41-debian Git repository.\n' >&2
+    exit 1
+  fi
+fi
+
 OUT="$ROOT/snapshot/current"
 mkdir -p "$OUT/config"
 
