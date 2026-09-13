@@ -1,0 +1,20 @@
+#!/bin/sh
+
+STATE="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/gamemode-power-profile"
+
+if [ -r "$STATE" ]; then
+    PREV="$(cat "$STATE")"
+
+    case "$PREV" in
+        performance|balanced|power-saver)
+            powerprofilesctl set "$PREV"
+            ;;
+        *)
+            powerprofilesctl set balanced
+            ;;
+    esac
+
+    rm -f "$STATE"
+else
+    powerprofilesctl set balanced
+fi

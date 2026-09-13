@@ -1,0 +1,8 @@
+#!/bin/sh
+
+STATE="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/gamemode-power-profile"
+
+if command -v powerprofilesctl >/dev/null 2>&1; then
+    powerprofilesctl get > "$STATE" 2>/dev/null || echo balanced > "$STATE"
+    powerprofilesctl set performance
+fi
