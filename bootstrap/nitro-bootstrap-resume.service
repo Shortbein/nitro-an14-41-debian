@@ -1,0 +1,16 @@
+[Unit]
+Description=Acer Nitro Debian bootstrap/resume
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/etc/nitro-bootstrap.env
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/nitro-bootstrap.env
+ExecStart=/usr/local/lib/nitro-bootstrap/runner.sh
+StandardOutput=journal
+StandardError=journal
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target

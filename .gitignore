@@ -4,6 +4,13 @@
 *.zip
 *.wav
 *.core
+*.deb
 
 private/
 results/raw/
+bootstrap/local.env
+snapshot/current/
+snapshot/private/
+**/.env
+**/*token*
+**/*secret*

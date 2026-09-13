@@ -1,0 +1,4 @@
+# Reproduce the validated AN14-41 runtime state.
+ALGO=zstd
+PERCENT=50
+PRIORITY=100

@@ -1,0 +1,18 @@
+Output: 1 eDP-1
+	enabled
+	connected
+	priority 1
+	Panel
+	Modes:  1:2560x1600@120*!  2:2560x1600@60  3:1920x1200@120  4:1920x1080@120  5:1600x1200@120  6:1680x1050@120  7:1280x1024@120  8:1440x900@120  9:1280x800@120  10:1280x720@120  11:1024x768@120  12:800x600@120  13:640x480@120  14:1600x1200@60  15:1280x1024@60  16:1024x768@60  17:1920x1200@60  18:1280x800@60  19:2560x1440@60  20:2560x1440@120  21:1920x1080@60  22:1600x900@60  23:1600x900@120  24:1368x768@60  25:1368x768@120  26:1280x720@60 
+	Geometry: 0,0 2048x1280
+	Scale: 1.25
+	Rotation: 1
+	Overscan: 0
+	Vrr: Never
+	RgbRange: unknown
+	HDR: incapable
+	Wide Color Gamut: incapable
+	ICC profile: none
+	Color profile source: sRGB
+	Color power preference: prefer efficiency and performance
+	Brightness control: supported, set to 100% and dimming to 100%

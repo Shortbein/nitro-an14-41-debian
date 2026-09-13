@@ -1,0 +1,138 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+# Prefer the Git repository that contains the current working directory. This
+# keeps the collector usable even when the script is streamed/copied to /tmp.
+if ROOT="$(git -C "$PWD" rev-parse --show-toplevel 2>/dev/null)"; then
+  :
+else
+  SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+  if ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null)"; then
+    :
+  else
+    printf 'ERROR: run this script from inside the nitro-an14-41-debian Git repository.\n' >&2
+    exit 1
+  fi
+fi
+
+OUT="$ROOT/snapshot/current"
+rm -rf "$OUT"
+mkdir -p "$OUT/config"
+
+sanitize_stream() {
+  sed \
+    -e "s#${HOME//\#/\\#}#\$HOME#g" \
+    -e "s#\b${USER}\b#\$USER#g" \
+    -E \
+    -e 's#(https?://)[^/@[:space:]]+:[^/@[:space:]]+@#\1REDACTED@#g' \
+    -e 's#^([[:space:]]*(deviceUUID|driverUUID)[[:space:]]*=).*#\1 <redacted>#'
+}
+
+safe_copy() {
+  local src="$1" dst="$2"
+  [[ -f "$src" ]] || return 0
+  if grep -Eq '://[^/[:space:]]+:[^/@[:space:]]+@' "$src" 2>/dev/null; then
+    echo "SKIPPED possible embedded credential: $src" >> "$OUT/SKIPPED.txt"
+    return 0
+  fi
+  mkdir -p "$OUT/config/$(dirname "$dst")"
+  sanitize_stream < "$src" > "$OUT/config/$dst"
+  chmod 0644 "$OUT/config/$dst"
+}
+
+{
+  echo "captured=$(date --iso-8601=seconds)"
+  echo "kernel=$(uname -r)"
+  . /etc/os-release
+  echo "os=${PRETTY_NAME:-unknown}"
+  echo "product=$(cat /sys/class/dmi/id/product_name 2>/dev/null || true)"
+  echo "bios=$(cat /sys/class/dmi/id/bios_version 2>/dev/null || true)"
+  echo "session=${XDG_SESSION_TYPE:-unknown}"
+  echo "locale=$(locale 2>/dev/null | grep '^LANG=' || true)"
+  echo "timezone=$(timedatectl show -p Timezone --value 2>/dev/null || true)"
+  echo "groups=$(id -nG 2>/dev/null || true)"
+} | sanitize_stream > "$OUT/system.txt"
+
+apt-mark showmanual | sort > "$OUT/apt-manual.txt"
+apt-mark showhold | sort > "$OUT/apt-holds.txt"
+dpkg-query -W -f='${binary:Package}\t${Version}\t${Architecture}\n' | sort > "$OUT/dpkg-versions.tsv"
+dkms status > "$OUT/dkms.txt" 2>&1 || true
+swapon --show > "$OUT/swap.txt" 2>&1 || true
+zramctl > "$OUT/zram.txt" 2>&1 || true
+powerprofilesctl get > "$OUT/power-profile.txt" 2>&1 || true
+systemctl list-unit-files --state=enabled --no-pager > "$OUT/systemd-enabled.txt" 2>&1 || true
+systemctl --user list-unit-files --state=enabled --no-pager > "$OUT/systemd-user-enabled.txt" 2>&1 || true
+kscreen-doctor -o 2>/dev/null | sanitize_stream > "$OUT/display.txt" || true
+vulkaninfo --summary 2>/dev/null | sanitize_stream > "$OUT/vulkan.txt" || true
+glxinfo -B 2>/dev/null | sanitize_stream > "$OUT/opengl.txt" || true
+
+{
+  echo '=== sources ==='
+  grep -RhvE '^[[:space:]]*(#|$)' /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null || true
+  echo
+  echo '=== preferences ==='
+  grep -Rh . /etc/apt/preferences /etc/apt/preferences.d/* 2>/dev/null || true
+} | sanitize_stream > "$OUT/apt-repositories.txt"
+
+safe_copy /etc/gamemode.ini etc/gamemode.ini
+safe_copy /etc/default/zramswap etc/default/zramswap
+safe_copy /etc/systemd/zram-generator.conf etc/systemd/zram-generator.conf
+safe_copy /etc/default/grub etc/default/grub
+safe_copy /etc/systemd/system/asense-keyboard-warm.service etc/systemd/system/asense-keyboard-warm.service
+safe_copy /usr/local/sbin/asense-keyboard-warm usr/local/sbin/asense-keyboard-warm
+safe_copy /usr/local/bin/gamemode-profile-start usr/local/bin/gamemode-profile-start
+safe_copy /usr/local/bin/gamemode-profile-end usr/local/bin/gamemode-profile-end
+safe_copy /etc/docker/daemon.json etc/docker/daemon.json
+
+if command -v flatpak >/dev/null 2>&1; then
+  flatpak list --app --columns=application,branch,origin,installation 2>/dev/null \
+    | sanitize_stream > "$OUT/flatpak-apps.tsv" || \
+  flatpak list --app --columns=application,branch,origin 2>/dev/null \
+    | sanitize_stream > "$OUT/flatpak-apps.tsv" || true
+fi
+
+{
+  for dir in "$HOME/.steam/root/compatibilitytools.d" "$HOME/.local/share/Steam/compatibilitytools.d"; do
+    [[ -d "$dir" ]] || continue
+    echo "$dir"
+    find "$dir" -mindepth 1 -maxdepth 1 -type d -printf '  %f\n' | sort
+  done
+} | sanitize_stream > "$OUT/steam-compatibility-tools.txt"
+
+if command -v code >/dev/null 2>&1; then
+  code --list-extensions --show-versions 2>/dev/null | sort > "$OUT/vscode-extensions.txt" || true
+fi
+
+if command -v pipx >/dev/null 2>&1; then
+  pipx list 2>&1 | sanitize_stream > "$OUT/pipx.txt" || true
+fi
+
+if command -v docker >/dev/null 2>&1; then
+  docker version --format 'client={{.Client.Version}} server={{.Server.Version}}' 2>/dev/null \
+    | sanitize_stream > "$OUT/docker-version.txt" || true
+fi
+
+if [[ -x "$HOME/.openclaw/bin/openclaw" ]]; then
+  "$HOME/.openclaw/bin/openclaw" --version > "$OUT/openclaw-version.txt" 2>&1 || true
+fi
+if [[ -f "$HOME/.openclaw/workspace/AGENTS.md" ]]; then
+  sanitize_stream < "$HOME/.openclaw/workspace/AGENTS.md" > "$OUT/openclaw-AGENTS.md"
+fi
+
+cat > "$OUT/README.md" <<'TXT'
+# Sanitized current-system snapshot
+
+Generated by `scripts/capture-system.sh`.
+
+This snapshot intentionally does **not** copy credentials, browser profiles,
+SSH/GPG keys, VPN configuration, password stores, OpenClaw authentication,
+Steam/Heroic credentials, `.env` files, NetworkManager connection profiles or
+arbitrary home-directory content.
+
+User/home paths and Vulkan device UUIDs are redacted. It is an audit/reference
+snapshot. The actual rebuild logic lives in `bootstrap/` and applies the
+validated configuration declaratively.
+TXT
+
+printf 'Snapshot written to %s\n' "$OUT"
+printf 'Review before committing: git diff -- snapshot/current\n'
