@@ -9,6 +9,7 @@ require_root
 : "${TARGET_HOME:?TARGET_HOME missing}"
 : "${REPO_PATH:?REPO_PATH missing}"
 AUTO_REBOOT="${AUTO_REBOOT:-1}"
+TEST_MODE="${TEST_MODE:-0}"
 STATE_DIR=/var/lib/nitro-bootstrap
 STAGE_FILE="$STATE_DIR/stage"
 mkdir -p "$STATE_DIR"
@@ -302,7 +303,7 @@ stage_30_asense() {
   sum="$tmp/$(basename "$sum_url")"
   curl -fsSL -o "$zip" "$zip_url"
   curl -fsSL -o "$sum" "$sum_url"
-  (cd "$tmp" && sha256sum --check "$(basename "$sum")"
+  (cd "$tmp" && sha256sum --check "$(basename "$sum")")
   unzip -q "$zip" -d "$tmp/unpacked"
   dir="$(find "$tmp/unpacked" -mindepth 1 -maxdepth 1 -type d | head -n1)"
   [[ -n "$dir" ]] || die 'ASense installer directory not found'
@@ -310,6 +311,14 @@ stage_30_asense() {
   patch -d "$dir" -p1 --forward < "$REPO_PATH/bootstrap/asense-v0.3.0-an14-41.patch" || {
     grep -q 'Nitro AN14-41' "$dir/kernel/asense_rgb.c" || die 'ASense AN14-41 patch failed'
   }
+
+  if [[ "$TEST_MODE" == 1 ]]; then
+    log 'TEST MODE: ASense payload/checksum/AN14-41 patch validated; skipping Acer WMI/DKMS install and hardware writes.'
+    rm -rf "$tmp"
+    set_stage 40
+    return 0
+  fi
+
   "$dir/install.sh" "$dir/bin/asense" "$TARGET_USER"
   rm -rf "$tmp"
 
@@ -342,7 +351,11 @@ XAN
   xk="$(basename "$(ls -1 /boot/vmlinuz-*xanmod* 2>/dev/null | sort -V | tail -n1)" | sed 's/^vmlinuz-//')"
   [[ -n "$xk" ]] || die 'XanMod kernel was not installed'
   log "XanMod target kernel: $xk"
-  dkms status | grep -F "asense-rgb/${ASENSE_VERSION:-0.3.0}, $xk" | grep -q 'installed' || die "ASense DKMS missing for $xk"
+  if [[ "$TEST_MODE" == 1 ]]; then
+    log 'TEST MODE: skipping ASense DKMS gate (QEMU has no Acer WMI endpoint).'
+  else
+    dkms status | grep -F "asense-rgb/${ASENSE_VERSION:-0.3.0}, $xk" | grep -q 'installed' || die "ASense DKMS missing for $xk"
+  fi
   dkms status | grep -F 'nvidia/' | grep -F ", $xk" | grep -q 'installed' || die "NVIDIA DKMS missing for $xk"
 
   update-initramfs -u -k "$xk"
@@ -352,10 +365,18 @@ XAN
 }
 
 stage_50_verify_after_reboot() {
-  log 'STAE 50: post-reboot validation'
+  log 'STAGE 50: post-reboot validation'
   local kernel
   kernel="$(uname -r)"
   [[ "$kernel" == *xanmod* ]] || die "expected XanMod after reboot, running $kernel. Boot XanMod manually and restart this service."
+
+  if [[ "$TEST_MODE" == 1 ]]; then
+    log 'TEST MODE: XanMod reboot/resume succeeded. Verifying NVIDIA DKMS build only; hardware load/ASense/RTD3 checks are skipped.'
+    dkms status | grep -F 'nvidia/' | grep -F ", $kernel" | grep -q 'installed' || die "NVIDIA DKMS missing for running test kernel $kernel"
+    powerprofilesctl set balanced 2>/dev/null || true
+    set_stage 60
+    return 0
+  fi
 
   modprobe nvidia || true
   modprobe asense_rgb || true
@@ -383,9 +404,9 @@ stage_60_openclaw() {
     local oc="$TARGET_HOME/.openclaw/bin/openclaw"
     if [[ -x "$oc" ]]; then
       as_user "$TARGET_USER" "$oc" exec-policy preset cautious || true
-      as_user "$TARGETUSER" "$oc" config set tools.fs.workspaceOnly true || true
+      as_user "$TARGET_USER" "$oc" config set tools.fs.workspaceOnly true || true
       as_user "$TARGET_USER" "$oc" config set tools.elevated.enabled false || true
-      as_user "$TARGETUSER" "$oc" config set tools.deny '["browser","portal","cron","automations","gateway"]' --strict-json || true
+      as_user "$TARGET_USER" "$oc" config set tools.deny '["browser","portal","cron","automations","gateway"]' --strict-json || true
       as_user "$TARGET_USER" "$oc" config validate || true
     fi
   fi
@@ -400,6 +421,7 @@ stage_70_finalize() {
     echo "kernel=$(uname -r)"
     echo "power_profile=$(powerprofilesctl get 2>/dev/null || true)"
     echo "user=$TARGET_USER"
+    echo "test_mode=$TEST_MODE"
     echo '--- dkms ---'; dkms status || true
     echo '--- swap ---'; swapon --show || true
     echo '--- flatpaks ---'; flatpak list --app --columns=application,branch,origin 2>/dev/null || true
@@ -420,7 +442,7 @@ stage_70_finalize() {
 }
 
 stage="$(cat "$STAGE_FILE" 2>/dev/null || echo 10)"
-log "Starting/resuming Nitro bootstrap at stage $stage (kernel $(uname -r))"
+log "Starting/resuming Nitro bootstrap at stage $stage (kernel $(uname -r), test_mode=$TEST_MODE)"
 case "$stage" in
   10) stage_10_base; stage_20_graphics_gaming_and_apps; stage_30_asense; stage_40_kernels ;;
   20) stage_20_graphics_gaming_and_apps; stage_30_asense; stage_40_kernels ;;
