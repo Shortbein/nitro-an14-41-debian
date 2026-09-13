@@ -1,0 +1,21 @@
+--- /usr/src/asense-rgb-0.3.0/asense_rgb.c.pre-rgbdiag	2026-09-13 12:50:27.226400639 +0200
++++ /usr/src/asense-rgb-0.3.0/asense_rgb.c	2026-09-13 14:02:32.557354860 +0200
+@@ -2281,7 +2281,17 @@
+ 	asense_select_zone_config(rgb);
+ 	error = asense_read_rgb_state(rgb, &effect, &zones);
+ 	if (!error) {
+-		if (!asense_effect_valid(&effect)) {
++		if (!asense_effect_valid(&effect) &&
++		    !(dmi_match(DMI_PRODUCT_NAME, "Nitro AN14-41") &&
++		      effect.mode == 3 &&
++		      effect.speed == 0 &&
++		      effect.direction == 0 &&
++		      effect.brightness <= 100 &&
++		      effect.red == 0 &&
++		      effect.green == 0 &&
++		      effect.blue == 0 &&
++		      (effect.engine == ASENSE_STATIC_ENGINE ||
++		       effect.engine == ASENSE_FOUR_ZONE_ENGINE))) {
+ 			dev_warn(&rgb->wdev->dev,
+ 				 "keyboard RGB state is invalid\n");
+ 		} else {

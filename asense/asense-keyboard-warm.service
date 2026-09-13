@@ -1,0 +1,12 @@
+[Unit]
+Description=Acer Nitro keyboard warm RGB
+Requires=asense.socket
+After=asense.socket systemd-modules-load.service
+
+[Service]
+Type=oneshot
+User=tim
+ExecStart=/usr/local/sbin/asense-keyboard-warm
+
+[Install]
+WantedBy=multi-user.target

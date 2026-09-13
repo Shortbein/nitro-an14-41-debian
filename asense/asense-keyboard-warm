@@ -1,0 +1,65 @@
+#!/usr/bin/env python3
+
+import socket
+import sys
+import time
+
+SOCKET = "/run/asense-control.sock"
+COMMAND = b"LIGHTING APPLY zoned-wmi-keyboard STATIC 30 0 FFB000 -\n"
+
+
+def try_apply():
+    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    s.settimeout(5)
+
+    try:
+        s.connect(SOCKET)
+        f = s.makefile("rwb", buffering=0)
+
+        f.write(b"HELLO 2\n")
+        hello = f.readline(4097).decode().strip()
+
+        if not hello.startswith("OK"):
+            return False, f"HELLO fehlgeschlagen: {hello}"
+
+        f.write(COMMAND)
+        result = f.readline(4097).decode().strip()
+
+        if not result.startswith("OK"):
+            return False, f"RGB fehlgeschlagen: {result}"
+
+        return True, result
+
+    except (
+        FileNotFoundError,
+        ConnectionRefusedError,
+        ConnectionResetError,
+        socket.timeout,
+        OSError,
+    ) as e:
+        return False, str(e)
+
+    finally:
+        try:
+            s.close()
+        except Exception:
+            pass
+
+
+last_error = ""
+
+for attempt in range(1, 31):
+    ok, result = try_apply()
+
+    if ok:
+        print("Keyboard RGB: STATIC #FFB000 @ 30%")
+        sys.exit(0)
+
+    last_error = result
+    time.sleep(1)
+
+print(
+    f"Keyboard RGB konnte nach 30 Versuchen nicht gesetzt werden: {last_error}",
+    file=sys.stderr,
+)
+sys.exit(1)

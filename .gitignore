@@ -1,0 +1,9 @@
+*.log
+*.json
+*.tar.gz
+*.zip
+*.wav
+*.core
+
+private/
+results/raw/
