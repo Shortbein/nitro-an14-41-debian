@@ -122,3 +122,23 @@ git diff -- snapshot/current
 
 The collector sanitizes the snapshot and excludes credential-bearing areas.
 Always review it before committing.
+
+
+## VM test mode
+
+For a disposable QEMU/KVM Debian 13 KDE VM:
+
+```bash
+git checkout feature/one-command-rebuild
+git pull --ff-only
+bash -n bootstrap/install.sh
+bash -n bootstrap/runner.sh
+./bootstrap/install.sh --test-mode
+```
+
+Test mode bypasses the Acer DMI check, validates the ASense download/checksum and
+AN14-41 patch without performing Acer WMI/hardware writes, still builds the
+NVIDIA DKMS module, installs XanMod, reboots, resumes automatically, and then
+skips physical NVIDIA/ASense/RTD3 assertions that cannot succeed in QEMU.
+
+Run the installer as the normal desktop user. It invokes sudo itself.
