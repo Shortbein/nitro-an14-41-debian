@@ -7,18 +7,21 @@ source "$ROOT/bootstrap/common.sh"
 AUTO_REBOOT=1
 TARGET_USER="${SUDO_USER:-${USER:-}}"
 FORCE=0
+TEST_MODE=0
 
 usage() {
   cat <<'USAGE'
-Usage: ./bootstrap/install.sh [--no-auto-reboot] [--user USER] [--force]
+Usage: ./bootstrap/install.sh [--test-mode] [--no-auto-reboot] [--user USER] [--force]
 
 Installs a resumable Acer Nitro AN14-41 Debian configuration job.
 The job survives reboots and continues automatically through systemd.
+--test-mode allows a QEMU/KVM VM to exercise the software/reboot flow while skipping Acer-only hardware actions.
 USAGE
 }
 
 while (($#)); do
   case "$1" in
+    --test-mode) TEST_MODE=1 ;;
     --no-auto-reboot) AUTO_REBOOT=0 ;;
     --user) shift; TARGET_USER="${1:-}" ;;
     --force) FORCE=1 ;;
@@ -39,10 +42,14 @@ source /etc/os-release
 PRODUCT="$(cat /sys/class/dmi/id/product_name 2>/dev/null || true)"
 VENDOR="$(cat /sys/class/dmi/id/sys_vendor 2>/dev/null || true)"
 if [[ "$VENDOR" != Acer || "$PRODUCT" != 'Nitro AN14-41' ]]; then
-  (( FORCE )) || die "expected Acer Nitro AN14-41, detected: $VENDOR $PRODUCT"
+  if (( TEST_MODE )); then
+    log "TEST MODE: hardware check bypassed for: $VENDOR $PRODUCT"
+  else
+    (( FORCE )) || die "expected Acer Nitro AN14-41, detected: $VENDOR $PRODUCT"
+  fi
 fi
 
-command -v sudo >/dev/null 2>&1 || die 'sudo is required'
+command -v sudo >/dev/null 2>&1 || die "sudo is required. As root run: apt install -y sudo && usermod -aG sudo $TARGET_USER ; then log out and back in."
 sudo -v
 
 REPO_PATH="$ROOT"
@@ -59,6 +66,7 @@ TARGET_USER=$TARGET_USER
 TARGET_HOME=$TARGET_HOME
 REPO_PATH=$REPO_PATH
 AUTO_REBOOT=$AUTO_REBOOT
+TEST_MODE=$TEST_MODE
 ENV
 sudo chmod 0600 /etc/nitro-bootstrap.env
 
@@ -78,6 +86,7 @@ State:    sudo cat /var/lib/nitro-bootstrap/stage
 Abort:    sudo systemctl disable --now nitro-bootstrap-resume.service
 
 Automatic reboot: $AUTO_REBOOT
+Test mode:       $TEST_MODE
 MSG
 
 sudo systemctl start nitro-bootstrap-resume.service
