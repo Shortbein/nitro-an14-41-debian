@@ -1,7 +1,7 @@
 # Acer Nitro AN14-41 – Debian workstation and gaming setup
 
-Reproducible configuration, compatibility fixes, diagnostics and benchmarks
-for an Acer Nitro AN14-41 running Debian.
+Reproducible configuration, compatibility fixes, diagnostics and benchmarks for
+an Acer Nitro AN14-41 running Debian.
 
 Hardware:
 
@@ -25,19 +25,20 @@ Validated target state (2026-09-13):
 
 ## Disaster-recovery bootstrap
 
-A fresh Debian 13 KDE install can be rebuilt from this repository:
+A fresh Debian 13 KDE installation can be rebuilt from this repository:
 
 ```bash
-sudo apt update && sudo apt install -y git
+sudo apt update
+sudo apt install -y git
 git clone https://github.com/Shortbein/nitro-an14-41-debian.git
 cd nitro-an14-41-debian
 ./bootstrap/install.sh
 ```
 
-The bootstrap persists its state, performs required reboots, and automatically
-continues after boot. See [`bootstrap/README.md`](bootstrap/README.md).
+The bootstrap persists its state, performs required reboots and resumes
+automatically after boot. See [`bootstrap/README.md`](bootstrap/README.md).
 
-To save a sanitized snapshot of the exact current system before a reinstall:
+To refresh the sanitized reference inventory before a future reinstall:
 
 ```bash
 ./scripts/capture-system.sh
@@ -46,13 +47,14 @@ To save a sanitized snapshot of the exact current system before a reinstall:
 Repository areas:
 
 - `bootstrap/` – one-command rebuild and reboot-resume state machine
-- `snapshot/` – sanitized current-system inventory (generated locally)
+- `manifests/` – sanitized package/app/service reference manifests
+- `snapshot/` – locally generated sanitized current-system snapshot
 - `asense/` – AN14-41 compatibility work
 - `gamemode/` – validated GameMode power profile configuration
 - `hardware-tests/` – hardware acceptance tests
 - `benchmarks/` – reproducible performance tests
 - `kernel-tests/` – kernel A/B comparisons
 - `scripts/` – audit/export/helper scripts
-- `openclaw/` – non-secret agent policy only
+- `openclaw/` – non-secret local agent policy
 
-Secrets and personal data are intentionally excluded from Git.
+Secrets and personal authentication data are intentionally excluded from Git.

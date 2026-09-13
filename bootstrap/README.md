@@ -10,19 +10,22 @@ idempotent Debian bootstrap.
 - Ryzen 7 8845HS / Radeon 780M
 - RTX 4060 Laptop GPU
 
-The bootstrap configures the parts that were validated on the reference
-machine: Debian Backports, AMD firmware/Mesa and i386 Vulkan, NVIDIA 595 open
-kernel modules, PRIME-ready userspace, GameMode, ZRAM, Steam/Wine/Lutris,
-MangoHud/Gamescope, GE-Proton, Heroic, ASense 0.3.0 with the AN14-41 RGB quirk,
-80% battery limit, warm keyboard RGB, a Debian Backports fallback kernel and
-XanMod x64v3 as the preferred kernel.
+The bootstrap restores the captured workstation package/application set and the
+parts that were explicitly validated on the reference machine: Debian
+Backports, AMD firmware/Mesa and i386 Vulkan, NVIDIA 595 open kernel modules,
+GameMode, zram-tools, Steam/Wine/Lutris, MangoHud/Gamescope, GE-Proton,
+Proton-CachyOS, Heroic, the captured Flatpak applications, ASense 0.3.0 with the
+AN14-41 RGB quirk, 80% battery limit, warm keyboard RGB, a Debian Backports
+fallback kernel and XanMod x64v3 as the preferred kernel.
 
-It also installs OpenClaw 2026.9.4 and the local Rudi policy, but provider OAuth
-remains interactive by design.
+The captured manually-installed APT list is stored in `manifests/`. The runner
+installs the portable part of that list and handles kernels, NVIDIA, ASense and
+other order-sensitive components in dedicated stages.
 
 ## Fresh install
 
-Install Debian 13 with KDE and create your normal desktop account. Then:
+Install Debian 13 with KDE, network access and your normal desktop account.
+Then:
 
 ```bash
 sudo apt update
@@ -32,9 +35,8 @@ cd nitro-an14-41-debian
 ./bootstrap/install.sh
 ```
 
-The script asks for sudo once, installs a root systemd resume service, and then
-continues automatically. When the kernel stage is reached it reboots and
-resumes by itself.
+The bootstrap persists its state, performs required reboots, and continues
+automatically after boot through systemd.
 
 Progress:
 
@@ -54,57 +56,69 @@ Final report:
 sudo cat /var/lib/nitro-bootstrap/final-report.txt
 ```
 
-## What is intentionally not automated
+## What gets restored
 
-Account authentication is never copied to Git. After the rebuild you still
-need to sign in to Steam/Heroic and complete OpenClaw model-provider OAuth.
-Steam may then download Proton Experimental automatically when selected.
+- all captured portable/manual APT packages that remain available
+- Docker, VS Code, Google Chrome, AnyDesk and the official ChatGPT desktop app
+- the five captured Flathub applications
+- Steam/Wine/Lutris/Heroic and gaming utilities
+- GE-Proton and the latest x86_64 Proton-CachyOS release
+- GameMode scripts/config
+- zram-tools (`zstd`, 50% RAM, priority 100)
+- `acpi_backlight=native`
+- AMD backports firmware/Mesa + i386 graphics stack
+- NVIDIA 595 open DKMS branch
+- ASense 0.3.0 + the AN14-41 RGB compatibility patch
+- 80% battery limit and warm keyboard RGB
+- Debian Backports kernel + XanMod x64v3
+- Docker/SSH/AnyDesk/Bluetooth/fstrim services
+- OpenClaw version/policy, without authentication
 
-For OpenClaw:
+## Intentionally manual / not stored in Git
 
-```bash
-./bootstrap/post-openclaw-onboard.sh
-# complete: ~/.openclaw/bin/openclaw onboard
-./bootstrap/post-openclaw-onboard.sh --finish
-```
+Account authentication is never copied to Git. After a rebuild you still need
+to sign in to Steam/Heroic/Chrome/ChatGPT as applicable and complete OpenClaw
+model-provider OAuth/onboarding. Secure Boot can also require an interactive
+MOK enrollment.
 
-No browser cookies, SSH/GPG keys, VPN credentials, password-store data,
-OpenClaw tokens, API keys or `.env` secrets belong in this repository.
+The repository does not store game data, browser profiles/cookies, SSH/GPG
+private keys, VPN credentials, password-manager data, NetworkManager Wi-Fi
+profiles, API tokens, OpenClaw authentication, Docker registry credentials, or
+arbitrary `$HOME` data.
+
+Disk partitioning is also left to the Debian installer. The current machine has
+a disk swap partition in addition to ZRAM, but the bootstrap will not create,
+resize or destroy partitions automatically.
 
 ## Safety / failure behaviour
 
-The runner only advances its stage after a stage succeeds. If DKMS cannot build
-NVIDIA or ASense for XanMod, it stops **before rebooting**.
+The runner advances its state only after a stage succeeds. If NVIDIA or ASense
+DKMS cannot build for XanMod, the process stops before rebooting.
 
-To stop the automation:
+Stop the automation:
 
 ```bash
 sudo systemctl disable --now nitro-bootstrap-resume.service
 ```
 
-After fixing a failed stage:
+Retry after fixing a failed stage:
 
 ```bash
 sudo systemctl restart nitro-bootstrap-resume.service
 ```
 
-To prevent automatic reboot during testing:
+Disable automatic reboots while testing:
 
 ```bash
 ./bootstrap/install.sh --no-auto-reboot
 ```
 
-## Capture the exact current machine
-
-Before treating the repository as the canonical disaster-recovery source, run:
+## Capture a refreshed reference snapshot
 
 ```bash
 ./scripts/capture-system.sh
 git diff -- snapshot/current
-git add snapshot/current
-git commit -m "Capture sanitized current Debian configuration"
-git push
 ```
 
-The capture is deliberately sanitized. It records package/configuration state
-without copying authentication or personal data.
+The collector sanitizes the snapshot and excludes credential-bearing areas.
+Always review it before committing.

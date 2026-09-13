@@ -1,0 +1,59 @@
+=== sources ===
+deb http://ftp.uni-kl.de/debian/ trixie main contrib non-free non-free-firmware
+deb-src http://ftp.uni-kl.de/debian/ trixie main contrib non-free non-free-firmware
+deb http://security.debian.org/debian-security trixie-security main contrib non-free non-free-firmware
+deb-src http://security.debian.org/debian-security trixie-security main contrib non-free non-free-firmware
+deb http://ftp.uni-kl.de/debian/ trixie-updates main contrib non-free non-free-firmware
+deb-src http://ftp.uni-kl.de/debian/ trixie-updates main contrib non-free non-free-firmware
+X-Repolib-Name: ChatGPT
+Types: deb
+URIs: https://persistent.oaistatic.com/codex-app-prod/linux/deb
+Suites: stable
+Components: main
+Architectures: amd64
+Signed-By: /usr/share/keyrings/chatgpt-archive-keyring.gpg
+deb [signed-by=/usr/share/keyrings/cuda-archive-keyring.gpg] https://developer.download.nvidia.com/compute/cuda/repos/debian13/x86_64/ /
+Types: deb
+URIs: https://deb.debian.org/debian
+Suites: trixie-backports
+Components: main contrib non-free non-free-firmware
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+Types: deb
+URIs: https://download.docker.com/linux/debian
+Suites: trixie
+Components: stable
+Architectures: amd64
+Signed-By: /etc/apt/keyrings/docker.asc
+X-Repolib-Name: Google Chrome
+Types: deb
+URIs: https://dl.google.com/linux/chrome-stable/deb/
+Suites: stable
+Components: main
+Architectures: amd64
+Signed-By: /usr/share/keyrings/google-chrome.gpg
+Types: deb
+URIs: https://packages.microsoft.com/repos/code
+Suites: stable
+Components: main
+Architectures: amd64
+Signed-By: /usr/share/keyrings/microsoft.gpg
+deb [signed-by=/etc/apt/keyrings/xanmod-archive-keyring.gpg] http://deb.xanmod.org trixie main
+
+=== preferences ===
+# Basic driver packages, includes foreign architectures
+Package: src:nvidia-graphics-drivers:any src:nvidia-kmod-open:any
+Pin: version 595*
+Pin-Priority: 1000
+# Basic driver packages, only in the native architectures
+Package: src:nvidia-modprobe src:nvidia-persistenced src:nvidia-settings src:nvidia-xconfig
+Pin: version 595*
+Pin-Priority: 1000
+# Meta packages, includes foreign architectures
+# cuda-compat, built from cuda-drivers must not be part of the pinning
+Package: cuda-drivers* src:nvidia-open:any
+Pin: version 595*
+Pin-Priority: 1000
+# Extra driver packages, only in the native architectures
+Package: src:libnvidia-nscq src:libnvsdm src:nvidia-fabricmanager src:nvidia-imex
+Pin: version 595*
+Pin-Priority: 1000

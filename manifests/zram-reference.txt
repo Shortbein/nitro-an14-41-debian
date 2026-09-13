@@ -1,0 +1,2 @@
+NAME       ALGORITHM DISKSIZE DATA COMPR TOTAL STREAMS MOUNTPOINT
+/dev/zram0 zstd          7,5G   4K   59B   20K         [SWAP]

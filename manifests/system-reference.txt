@@ -1,0 +1,5 @@
+captured=2026-09-13T18:14:47+02:00
+kernel=7.2.5-x64v3-xanmod1
+os=Debian GNU/Linux 13 (trixie)
+product=Nitro AN14-41
+bios=V1.06

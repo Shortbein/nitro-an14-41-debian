@@ -1,0 +1,4 @@
+$HOME/.steam/root/compatibilitytools.d
+  GE-Proton11-6-x86_64
+$HOME/.local/share/Steam/compatibilitytools.d
+  Proton-CachyOS Latest
